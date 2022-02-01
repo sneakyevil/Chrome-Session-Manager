@@ -38,7 +38,7 @@ namespace Program
 
                 Program::Info();
                 Console::Print(Console::m_uDefaultColor, '!', m_sText);
-                Console::DrawSelection(m_iIndex, m_pList, m_iSize, 2, "\t");
+                Console::DrawSelection(m_iIndex, m_pList, m_iSize, m_iDeltaShow, "\t");
             }
 
             int m_iKey = _getch();
@@ -161,7 +161,7 @@ int main()
                 else
                 {
                     std::vector<std::string> m_vSessionList = Program::GetFormattedSessionList();
-                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session:\n", m_vSessionList.data(), m_vSessionList.size(), 4, "\t");
+                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session:\n", m_vSessionList.data(), m_vSessionList.size(), 10, "\t");
                     switch (m_iSelectedSession)
                     {
                         case 0:
@@ -201,6 +201,7 @@ int main()
                     Program::Error("Session name can't be empty!");
                 else if (SessionManager::Create(m_sSessionName))
                 {
+                    Chrome::LaunchSession(m_sSessionName);
                     Console::Print(CLR_BGREEN, '~', "Successfully added new session.\n");
                     Sleep(5000);
                 }
@@ -219,7 +220,7 @@ int main()
                     std::vector<std::string> m_vSessionList = Program::GetFormattedSessionList();
                     m_vSessionList.erase(m_vSessionList.begin());
 
-                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session to delete:\n", m_vSessionList.data(), m_vSessionList.size(), 4, "\t");
+                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session to delete:\n", m_vSessionList.data(), m_vSessionList.size(), 10, "\t");
                     if (m_iSelectedSession != -1)
                     {
                         Program::Info();
