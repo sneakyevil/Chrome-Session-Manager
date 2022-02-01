@@ -223,8 +223,8 @@ int main()
                     if (m_iSelectedSession != -1)
                     {
                         Program::Info();
-                        Console::Print(Console::m_uDefaultColor, '!', "Are you sure, you wanna delete session with name '" + SessionManager::m_vList[m_iSelectedSession] + "'?");
-                        Console::Print(Console::m_uDefaultColor, '!', "\nValid options (Y / 1 / Yikes): ");
+                        Console::Print(Console::m_uDefaultColor, '!', "Are you sure, you wanna delete session with name '" + SessionManager::m_vList[m_iSelectedSession] + "'?\n");
+                        Console::Print(Console::m_uDefaultColor, '!', "Valid options (Y / 1 / Yikes): ");
 
                         std::string m_sAnswer;
                         std::getline(std::cin, m_sAnswer);
