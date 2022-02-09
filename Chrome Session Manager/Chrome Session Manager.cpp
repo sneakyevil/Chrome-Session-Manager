@@ -65,7 +65,7 @@ namespace Program
     std::vector<std::string> GetFormattedSessionList()
     {
         std::vector<std::string> m_vReturn;
-        m_vReturn.emplace_back("< Start all saved sessions >");
+        m_vReturn.emplace_back("< Start saved sessions by sub name >");
 
         int m_iCount = 1;
         for (std::string& SessionName : SessionManager::m_vList)
@@ -161,16 +161,37 @@ int main()
                 else
                 {
                     std::vector<std::string> m_vSessionList = Program::GetFormattedSessionList();
-                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session:\n", m_vSessionList.data(), m_vSessionList.size(), 10, "\t");
+                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session:\n", m_vSessionList.data(), m_vSessionList.size(), 5, "\t");
                     switch (m_iSelectedSession)
                     {
                         case 0:
                         {
                             Program::Info();
-                            Console::Print(CLR_BYELLOW, '~', "Launching all saved sessions...");
+                            Console::Print(Console::m_uDefaultColor, '!', "Session sub name (empty = all, '-' = back): ");
 
-                            for (std::string& SessionName : SessionManager::m_vList)
-                                Chrome::LaunchSession(SessionName);
+                            std::string m_sSubName;
+                            std::getline(std::cin, m_sSubName);
+
+                            if (m_sSubName == "-") break;
+
+                            if (m_sSubName.empty())
+                            {
+                                Console::Print(CLR_BYELLOW, '~', "Launching all saved sessions...");
+
+                                for (std::string& SessionName : SessionManager::m_vList)
+                                    Chrome::LaunchSession(SessionName);
+                            }
+                            else
+                            {
+                                Console::Print(CLR_BYELLOW, '~', "Launching sessions with sub name '" + m_sSubName + "'...");
+
+                                for (std::string& SessionName : SessionManager::m_vList)
+                                {
+                                    if (SessionName.find(m_sSubName) == std::string::npos) continue;
+
+                                    Chrome::LaunchSession(SessionName);
+                                }
+                            }
                         }
                         break;
                         default:
@@ -220,7 +241,7 @@ int main()
                     std::vector<std::string> m_vSessionList = Program::GetFormattedSessionList();
                     m_vSessionList.erase(m_vSessionList.begin());
 
-                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session to delete:\n", m_vSessionList.data(), m_vSessionList.size(), 10, "\t");
+                    int m_iSelectedSession = Program::GetSelectionIndex("Select Session to delete:\n", m_vSessionList.data(), m_vSessionList.size(), 5, "\t");
                     if (m_iSelectedSession != -1)
                     {
                         Program::Info();
