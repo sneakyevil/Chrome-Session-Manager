@@ -76,6 +76,28 @@ namespace Program
 
         return m_vReturn;
     }
+
+    std::string GetClipboardText()
+    {
+        std::string m_sText = "";
+
+        if (OpenClipboard(0))
+        {
+            HANDLE m_hData = GetClipboardData(CF_TEXT);
+            if (m_hData)
+            {
+                char* m_pText = static_cast<char*>(GlobalLock(m_hData));
+                if (m_pText)
+                    m_sText = m_pText;
+
+                GlobalUnlock(m_hData);
+            }
+
+            CloseClipboard();
+        }
+
+        return m_sText;
+    }
 }
 
 namespace Chrome
@@ -171,8 +193,18 @@ int main()
 
                             std::string m_sSubName;
                             std::getline(std::cin, m_sSubName);
-
                             if (m_sSubName == "-") break;
+
+                            Console::Print(Console::m_uDefaultColor, '!', "Launch Args (empty = default, '-c' = clipboard, '-' = back): ");
+
+                            std::string m_sArgs;
+                            std::getline(std::cin, m_sArgs);
+                            if (m_sArgs == "-") break;
+                            if (m_sArgs == "-c") m_sArgs = Program::GetClipboardText();
+
+                            std::string m_sOldArgs = SessionManager::m_sArgs;
+                            if (!m_sArgs.empty())
+                                SessionManager::m_sArgs = m_sArgs;
 
                             if (m_sSubName.empty())
                             {
@@ -192,6 +224,8 @@ int main()
                                     Chrome::LaunchSession(SessionName);
                                 }
                             }
+
+                            SessionManager::m_sArgs = m_sOldArgs;
                         }
                         break;
                         default:
