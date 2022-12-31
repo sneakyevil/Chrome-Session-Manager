@@ -143,10 +143,35 @@ namespace Chrome
                 AddArgument(SessionManager::m_sArgs);
         }
 
-        std::string m_sUserdataDir(MAX_PATH, '\0');
-        m_sUserdataDir.resize(GetCurrentDirectoryA(m_sUserdataDir.size(), &m_sUserdataDir[0]));
+        std::string m_SessionFolder(MAX_PATH, '\0');
+        m_SessionFolder.resize(GetCurrentDirectoryA(m_SessionFolder.size(), &m_SessionFolder[0]));
+        m_SessionFolder += "\\" + SessionManager::GetPath(m_sName);
 
-        AddArgument("--user-data-dir=\"" + m_sUserdataDir + "\\" + SessionManager::GetPath(m_sName) + "\"");
+        // Remove SwReporter (If you handle multiple session this crap will run in bg and rape the shit out of your cpu...)
+        {
+            std::string m_SwReporterPath(m_SessionFolder + "\\SwReporter\\*");
+            WIN32_FIND_DATA m_FindData = { 0 };
+
+            HANDLE m_Find = FindFirstFileA(&m_SwReporterPath[0], &m_FindData);
+            if (m_Find != INVALID_HANDLE_VALUE)
+            {
+                while (FindNextFileA(m_Find, &m_FindData) != 0)
+                {
+                    if (!(m_FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+                        continue;
+
+                    if (!isdigit(m_FindData.cFileName[0]))
+                        continue;
+
+                    std::string m_SwReporterExeFile(m_SessionFolder + "\\SwReporter\\" + m_FindData.cFileName + "\\software_reporter_tool.exe");
+                    remove(&m_SwReporterExeFile[0]);
+                }
+
+                FindClose(m_Find);
+            }
+        }
+
+        AddArgument("--user-data-dir=\"" + m_SessionFolder + "\"");
 
         NewProcess(m_sArgs);
     }
