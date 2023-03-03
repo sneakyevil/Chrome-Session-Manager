@@ -1,4 +1,5 @@
 #pragma once
+#include <ShlObj_core.h>
 #include <iostream>
 #include <conio.h>
 #include <Windows.h>

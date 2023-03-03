@@ -102,12 +102,30 @@ namespace Program
 
 namespace Chrome
 {
-    std::string m_sExecutablePath = "";
+    std::string m_ExecutablePath = "";
+    bool m_IsChromium = false;
 
     bool Init()
     {
-        m_sExecutablePath = Utils::Registry::GetString(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe", "");
-        if (m_sExecutablePath.empty() || m_sExecutablePath.find(".exe") == std::string::npos)
+        wchar_t* m_LocalAppData = nullptr;
+        HRESULT m_Res = SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, 0, &m_LocalAppData);
+        if (m_Res == S_OK)
+        {
+            std::string m_ChromiumPath(MAX_PATH, '\0');
+            m_ChromiumPath.resize(sprintf_s(&m_ChromiumPath[0], m_ChromiumPath.size(), "%ws\\Chromium\\Application\\chrome.exe", m_LocalAppData));
+            CoTaskMemFree(m_LocalAppData);
+
+            struct stat m_ChromiumStat;
+            if (stat(&m_ChromiumPath[0], &m_ChromiumStat) == 0)
+            {
+                m_ExecutablePath = m_ChromiumPath;
+                m_IsChromium = true;
+                return true;
+            }
+        }
+
+        m_ExecutablePath = Utils::Registry::GetString(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe", "");
+        if (m_ExecutablePath.empty() || m_ExecutablePath.find(".exe") == std::string::npos)
             return false; // Check just in-case registry fvcked up
 
         return true;
@@ -115,19 +133,46 @@ namespace Chrome
 
     void NewProcess(std::string m_sArgs = "")
     {
-        std::string m_sCommandLine = m_sExecutablePath + " " + m_sArgs;
+        std::string m_CommandLine = m_ExecutablePath + " " + m_sArgs;
 
-        STARTUPINFO m_sStartupInfo;
-        ZeroMemory(&m_sStartupInfo, sizeof(m_sStartupInfo));
-        m_sStartupInfo.cb = sizeof(STARTUPINFO);
+        STARTUPINFO m_StartupInfo;
+        ZeroMemory(&m_StartupInfo, sizeof(m_StartupInfo));
+        m_StartupInfo.cb = sizeof(STARTUPINFO);
 
-        PROCESS_INFORMATION m_pProcessInfo;
+        PROCESS_INFORMATION m_ProcessInfo;
 
-        if (!CreateProcessA(0, &m_sCommandLine[0], 0, 0, 0, 0, 0, 0, &m_sStartupInfo, &m_pProcessInfo))
+        if (!CreateProcessA(0, &m_CommandLine[0], 0, 0, 0, 0, 0, 0, &m_StartupInfo, &m_ProcessInfo))
             return;
 
-        CloseHandle(m_pProcessInfo.hProcess);
-        CloseHandle(m_pProcessInfo.hThread);
+        CloseHandle(m_ProcessInfo.hProcess);
+        CloseHandle(m_ProcessInfo.hThread);
+    }
+
+    void RemoveSwReporter(std::string m_SessionFolder)
+    {
+        if (m_IsChromium)
+            return;
+
+        std::string m_SwReporterPath(m_SessionFolder + "\\SwReporter\\*");
+        WIN32_FIND_DATA m_FindData = { 0 };
+
+        HANDLE m_Find = FindFirstFileA(&m_SwReporterPath[0], &m_FindData);
+        if (m_Find != INVALID_HANDLE_VALUE)
+        {
+            while (FindNextFileA(m_Find, &m_FindData) != 0)
+            {
+                if (!(m_FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+                    continue;
+
+                if (!isdigit(m_FindData.cFileName[0]))
+                    continue;
+
+                std::string m_SwReporterExeFile(m_SessionFolder + "\\SwReporter\\" + m_FindData.cFileName + "\\software_reporter_tool.exe");
+                remove(&m_SwReporterExeFile[0]);
+            }
+
+            FindClose(m_Find);
+        }
     }
 
     void LaunchSession(std::string m_sName)
@@ -137,7 +182,8 @@ namespace Chrome
 
         // Custom arguments
         {
-            AddArgument("--simulate-outdated-no-au=\"Tue, 31 Dec 2099 23:59 : 59 GMT\""); // Don't update
+            if (!m_IsChromium)
+                AddArgument("--simulate-outdated-no-au=\"Tue, 31 Dec 2099 23:59 : 59 GMT\""); // Don't update
 
             if (!SessionManager::m_sArgs.empty())
                 AddArgument(SessionManager::m_sArgs);
@@ -146,34 +192,11 @@ namespace Chrome
         std::string m_SessionFolder(MAX_PATH, '\0');
         m_SessionFolder.resize(GetCurrentDirectoryA(m_SessionFolder.size(), &m_SessionFolder[0]));
         m_SessionFolder += "\\" + SessionManager::GetPath(m_sName);
-
-        // Remove SwReporter (If you handle multiple session this crap will run in bg and rape the shit out of your cpu...)
-        {
-            std::string m_SwReporterPath(m_SessionFolder + "\\SwReporter\\*");
-            WIN32_FIND_DATA m_FindData = { 0 };
-
-            HANDLE m_Find = FindFirstFileA(&m_SwReporterPath[0], &m_FindData);
-            if (m_Find != INVALID_HANDLE_VALUE)
-            {
-                while (FindNextFileA(m_Find, &m_FindData) != 0)
-                {
-                    if (!(m_FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-                        continue;
-
-                    if (!isdigit(m_FindData.cFileName[0]))
-                        continue;
-
-                    std::string m_SwReporterExeFile(m_SessionFolder + "\\SwReporter\\" + m_FindData.cFileName + "\\software_reporter_tool.exe");
-                    remove(&m_SwReporterExeFile[0]);
-                }
-
-                FindClose(m_Find);
-            }
-        }
-
+    
         AddArgument("--user-data-dir=\"" + m_SessionFolder + "\"");
 
         NewProcess(m_sArgs);
+        RemoveSwReporter(m_SessionFolder);
     }
 }
 
